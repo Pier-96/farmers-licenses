@@ -10,7 +10,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from .config import Settings
 from .database import build_engine
 from .models import License
-from .schemas import CreateLicense, LicenseView, IssuedLicense
+from .schemas import CreateLicense, LicenseView, IssuedLicense, ActivateRequest, ActivationResult
+from .activation import activate, ActivationDenied
 from .licenses import issue
 
 def create_app(settings=None):
@@ -20,7 +21,7 @@ def create_app(settings=None):
     async def lifespan(app):
         yield
         engine.dispose()
-    app = FastAPI(title='Multicliente Licencias — Fase 1', docs_url=None,
+    app = FastAPI(title='Multicliente Licencias — Fase 2', docs_url=None,
                   redoc_url=None, openapi_url=None, lifespan=lifespan)
     bearer = HTTPBearer(auto_error=False)
     def admin(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
@@ -47,7 +48,13 @@ def create_app(settings=None):
     @app.get('/health')
     def health(session: Session = Depends(database)):
         session.execute(text('SELECT 1'))
-        return {'status': 'ok', 'phase': 1}
+        return {'status': 'ok', 'phase': 2}
+    @app.post('/activate', response_model=ActivationResult)
+    def activation(body: ActivateRequest, session: Session = Depends(database)):
+        try:
+            return activate(session, body)
+        except ActivationDenied as exc:
+            return JSONResponse(status_code=exc.status, content={'code': exc.code})
     @app.get('/licenses', response_model=list[LicenseView], dependencies=[Depends(admin)])
     def listing(limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0),
                 session: Session = Depends(database)):

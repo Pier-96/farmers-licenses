@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class CreateLicense(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -25,3 +25,20 @@ class LicenseView(BaseModel):
 class IssuedLicense(BaseModel):
     key: str
     license: LicenseView
+
+class ActivateRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', hide_input_in_errors=True)
+    key: str = Field(min_length=19, max_length=19, pattern=r'^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$', repr=False)
+    machine_id: str = Field(min_length=64, max_length=64, pattern=r'^[0-9a-f]{64}$')
+
+    @field_validator('key', 'machine_id', mode='before')
+    @classmethod
+    def normalize(cls, value, info):
+        if isinstance(value, str):
+            return value.strip().upper() if info.field_name == 'key' else value.strip().lower()
+        return value
+
+class ActivationResult(BaseModel):
+    code: str
+    license_id: str
+    product_id: str
