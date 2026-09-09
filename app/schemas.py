@@ -42,3 +42,5 @@ class ActivationResult(BaseModel):
     code: str
     license_id: str
     product_id: str
+    token: str
+    signature: str

@@ -13,15 +13,17 @@ from .models import License
 from .schemas import CreateLicense, LicenseView, IssuedLicense, ActivateRequest, ActivationResult
 from .activation import activate, ActivationDenied
 from .licenses import issue
+from .signing import Signer
 
 def create_app(settings=None):
     settings = settings or Settings()
+    signer = Signer(settings.private_signing_key.get_secret_value())
     engine = build_engine(settings)
     @asynccontextmanager
     async def lifespan(app):
         yield
         engine.dispose()
-    app = FastAPI(title='Multicliente Licencias — Fase 2', docs_url=None,
+    app = FastAPI(title='Multicliente Licencias — Fase 5', docs_url=None,
                   redoc_url=None, openapi_url=None, lifespan=lifespan)
     bearer = HTTPBearer(auto_error=False)
     def admin(credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
@@ -48,11 +50,16 @@ def create_app(settings=None):
     @app.get('/health')
     def health(session: Session = Depends(database)):
         session.execute(text('SELECT 1'))
-        return {'status': 'ok', 'phase': 2}
+        return {'status': 'ok', 'phase': 5}
+    @app.get('/public-key')
+    def public_key():
+        return {'algorithm':'Ed25519', 'key_id':signer.key_id, 'public_key':signer.public}
     @app.post('/activate', response_model=ActivationResult)
     def activation(body: ActivateRequest, session: Session = Depends(database)):
         try:
-            return activate(session, body)
+            result = activate(session, body)
+            result.update(signer.sign(result['license_id'], result['product_id'], body.machine_id))
+            return result
         except ActivationDenied as exc:
             return JSONResponse(status_code=exc.status, content={'code': exc.code})
     @app.get('/licenses', response_model=list[LicenseView], dependencies=[Depends(admin)])

@@ -15,6 +15,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:test-only-password@localhost:5432/licensing_test
       ADMIN_TOKEN: test-only-admin-secret-not-for-production-12345
+      PRIVATE_SIGNING_KEY: test-only-signing-secret-never-use-in-production-12345
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -5,6 +5,7 @@ from sqlalchemy.engine import make_url
 class Settings(BaseSettings):
     database_url: SecretStr
     admin_token: SecretStr
+    private_signing_key: SecretStr
     model_config = SettingsConfigDict(env_file=None, extra='ignore', hide_input_in_errors=True)
 
     @model_validator(mode='after')
